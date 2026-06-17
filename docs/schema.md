@@ -70,6 +70,19 @@ Returned DataFrames use a UTC `DatetimeIndex` named `timestamp`. The
 
 **Deduplication:** drop duplicates on `(symbol, trade_id)`, keep first.
 
+### Trade Stream Notes
+
+Trades are collected from Binance Futures `@aggTrade`.
+
+Implications:
+
+* Volume-based metrics remain valid.
+* Taker-side metrics remain valid.
+* OFI-style features remain valid.
+* Multiple executions may be aggregated into a single aggTrade record.
+* Trade-count-based metrics undercount true execution frequency.
+* Researchers must not interpret aggTrade row counts as true trade counts.
+
 ## Top Of Book
 
 **Index:** `timestamp` (renamed from raw `event_time`, UTC `DatetimeIndex`)
