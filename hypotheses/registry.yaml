@@ -1,0 +1,33 @@
+- id: H001
+  title: "Extreme OFI predicts 5-minute forward mid-price return"
+  registered: "2026-06-17T00:00:00Z"
+  status: registered
+  hypothesis:
+    trigger: "OFI z-score crosses ±1.5"
+    outcome: "300-second forward mid-price return"
+    direction: "same sign as triggering event"
+  parameters:
+    symbol: BTCUSDT
+    ofi_window_seconds: 60
+    zscore_lookback_seconds: 3600
+    threshold: 1.5
+    cooldown_seconds: 300
+    primary_horizon_seconds: 300
+    secondary_horizon_seconds:
+      - 60
+  sample_requirements:
+    minimum_events: 300
+    minimum_days: 14
+  pass_criteria:
+    p_value_threshold: 0.01
+    correct_direction_pct: 54
+  robustness_checks:
+    - threshold_2_0
+    - threshold_3_0
+    - remove_top_5_events
+    - cross_symbol_ethusdt
+  notes: >
+    Threshold selected via 3 symbols × 3 days sanity check.
+    Event counts were stable across symbols and dates.
+  result: null
+  result_file: null
