@@ -3,7 +3,7 @@
   registered: "2026-06-17T00:00:00Z"
   status: registered
   hypothesis:
-    trigger: "OFI z-score crosses ±1.5"
+    trigger: "OFI z-score crosses +/-1.5"
     outcome: "300-second forward mid-price return"
     direction: "same sign as triggering event"
   parameters:
@@ -27,7 +27,7 @@
     - remove_top_5_events
     - cross_symbol_ethusdt
   notes: >
-    Threshold selected via 3 symbols × 3 days sanity check.
+    Threshold selected via 3 symbols x 3 days sanity check.
     Event counts were stable across symbols and dates.
   result: null
   result_file: null
