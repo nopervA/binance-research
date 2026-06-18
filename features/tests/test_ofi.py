@@ -189,3 +189,97 @@ class TestValidation:
 
         with pytest.raises(ValueError, match="monotonic increasing"):
             ofi.resample_to_1s_grid(series, "1970-01-01", "1970-01-01")
+
+
+class TestComputeNormalizedOfi:
+    def test_all_buy_volume_returns_plus_one(self):
+        window_seconds = 60
+        trades = _trades_df(
+            seconds=list(range(window_seconds)),
+            quantities=[1.0] * window_seconds,
+            is_buyer_maker=[False] * window_seconds,
+        )
+
+        result = ofi.compute_normalized_ofi(trades, window_seconds=window_seconds)
+
+        assert result.iloc[window_seconds - 1] == pytest.approx(1.0)
+
+    def test_all_sell_volume_returns_minus_one(self):
+        window_seconds = 60
+        trades = _trades_df(
+            seconds=list(range(window_seconds)),
+            quantities=[2.0] * window_seconds,
+            is_buyer_maker=[True] * window_seconds,
+        )
+
+        result = ofi.compute_normalized_ofi(trades, window_seconds=window_seconds)
+
+        assert result.iloc[window_seconds - 1] == pytest.approx(-1.0)
+
+    def test_equal_buy_and_sell_volume_returns_zero(self):
+        window_seconds = 60
+        seconds = list(range(window_seconds))
+        trades = _trades_df(
+            seconds=seconds,
+            quantities=[1.0] * window_seconds,
+            is_buyer_maker=[False, True] * (window_seconds // 2),
+        )
+
+        result = ofi.compute_normalized_ofi(trades, window_seconds=window_seconds)
+
+        assert result.iloc[window_seconds - 1] == pytest.approx(0.0)
+
+    def test_zero_total_volume_returns_nan(self):
+        trades = _trades_df(
+            seconds=[0],
+            quantities=[1.0],
+            is_buyer_maker=[False],
+        )
+
+        result = ofi.compute_normalized_ofi(trades, window_seconds=60)
+        zero_volume_point = result.iloc[119]
+
+        assert pd.isna(zero_volume_point)
+        assert not np.isinf(zero_volume_point)
+        assert zero_volume_point != 0
+
+    def test_min_periods_enforced(self):
+        window_seconds = 60
+        trades = _trades_df(
+            seconds=list(range(window_seconds)),
+            quantities=[1.0] * window_seconds,
+            is_buyer_maker=[False] * window_seconds,
+        )
+
+        result = ofi.compute_normalized_ofi(trades, window_seconds=window_seconds)
+
+        assert result.iloc[: window_seconds - 1].isna().all()
+
+    def test_output_compatible_with_compute_ofi_zscore(self):
+        window_seconds = 60
+        seconds = list(range(120))
+        trades = _trades_df(
+            seconds=seconds,
+            quantities=[1.0] * len(seconds),
+            is_buyer_maker=[False, True] * (len(seconds) // 2),
+        )
+
+        normalized = ofi.compute_normalized_ofi(trades, window_seconds=window_seconds)
+        zscore = ofi.compute_ofi_zscore(normalized, lookback_seconds=60)
+
+        assert len(zscore) == len(normalized)
+        assert isinstance(zscore.index, pd.DatetimeIndex)
+
+    def test_output_range_respected(self):
+        seconds = list(range(120))
+        trades = _trades_df(
+            seconds=seconds,
+            quantities=[1.0, 2.0, 3.0, 4.0] * 30,
+            is_buyer_maker=[False, True, False, True] * 30,
+        )
+
+        result = ofi.compute_normalized_ofi(trades, window_seconds=60)
+        finite_values = result[np.isfinite(result)]
+
+        assert (finite_values >= -1.0).all()
+        assert (finite_values <= 1.0).all()
