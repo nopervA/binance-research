@@ -6,7 +6,6 @@ import argparse
 import sys
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,6 +15,7 @@ if str(ROOT) not in sys.path:
 from data.loader import load_top_of_book, load_trades
 from events.ofi_events import detect_ofi_events
 from features.ofi import compute_ofi, compute_ofi_zscore, compute_signed_volume, resample_to_1s_grid
+from research.h001_predictive_power import compute_event_outcomes
 
 REPORTS_DIR = ROOT / "qa" / "reports"
 
@@ -53,43 +53,6 @@ def _select_events(
     return ordered.sample(n=sample_count, random_state=random_seed).copy()
 
 
-def _forward_price_lookup(
-    query_times: pd.Series,
-    mid_price: pd.Series,
-    tolerance: pd.Timedelta,
-) -> pd.DataFrame:
-    if query_times.empty:
-        return pd.DataFrame(
-            columns=["query_time", "matched_timestamp", "matched_price", "_orig_order"]
-        )
-
-    lookup = pd.DataFrame(
-        {
-            "timestamp": pd.DatetimeIndex(mid_price.index).as_unit("ns"),
-            "price": mid_price.to_numpy(),
-        }
-    ).sort_values("timestamp")
-
-    queries = pd.DataFrame(
-        {
-            "query_time": pd.DatetimeIndex(query_times).as_unit("ns"),
-            "_orig_order": range(len(query_times)),
-        }
-    ).sort_values("query_time")
-
-    merged = pd.merge_asof(
-        queries,
-        lookup,
-        left_on="query_time",
-        right_on="timestamp",
-        direction="forward",
-        tolerance=tolerance,
-    )
-    return merged.sort_values("_orig_order").rename(
-        columns={"timestamp": "matched_timestamp", "price": "matched_price"}
-    )
-
-
 def generate_alignment_diagnostic(
     events: pd.DataFrame,
     mid_price: pd.Series,
@@ -116,53 +79,10 @@ def generate_alignment_diagnostic(
             ]
         )
 
-    selected = selected.sort_values("timestamp").reset_index(drop=True)
-    event_times = selected["timestamp"]
-
-    event_matches = _forward_price_lookup(
-        event_times,
-        mid_price,
-        tolerance=pd.Timedelta(seconds=2),
-    )
-    target_times = event_times + pd.Timedelta(seconds=horizon_seconds)
-    horizon_matches = _forward_price_lookup(
-        target_times,
-        mid_price,
-        tolerance=pd.Timedelta(seconds=horizon_seconds / 2),
-    )
-
-    price_at_event = event_matches["matched_price"].to_numpy()
-    price_at_event_timestamp = event_matches["matched_timestamp"].to_numpy()
-    matched_mid_price_timestamp = horizon_matches["matched_timestamp"].to_numpy()
-    price_at_horizon = horizon_matches["matched_price"].to_numpy()
-
-    matched_ts = pd.to_datetime(matched_mid_price_timestamp, utc=True)
-    target_ts = pd.to_datetime(target_times, utc=True)
-    time_delta_seconds = (matched_ts - target_ts).dt.total_seconds().to_numpy()
-
-    forward_return_used = price_at_horizon / price_at_event - 1
-    invalid_mask = (
-        pd.isna(price_at_event)
-        | pd.isna(price_at_horizon)
-        | (price_at_event == 0)
-    )
-    forward_return_used = np.where(invalid_mask, np.nan, forward_return_used)
-
-    result = pd.DataFrame(
-        {
-            "event_timestamp": event_times.to_numpy(),
-            "event_direction": selected["direction"].to_numpy(),
-            "zscore_value": selected["zscore_value"].to_numpy(),
-            "price_at_event": price_at_event,
-            "price_at_event_timestamp": price_at_event_timestamp,
-            "target_time": target_times.to_numpy(),
-            "matched_mid_price_timestamp": matched_mid_price_timestamp,
-            "time_delta_seconds": time_delta_seconds,
-            "price_at_horizon": price_at_horizon,
-            "forward_return_used": forward_return_used,
-        }
-    )
-    return result.sort_values("event_timestamp").reset_index(drop=True)
+    outcomes = compute_event_outcomes(selected, mid_price, horizon_seconds)
+    return outcomes.rename(columns={"forward_return": "forward_return_used"}).sort_values(
+        "event_timestamp"
+    ).reset_index(drop=True)
 
 
 def format_diagnostic_table(diagnostic: pd.DataFrame) -> str:
