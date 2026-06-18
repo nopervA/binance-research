@@ -64,5 +64,15 @@
     Event counts were stable across symbols and dates.
     Statistical test design finalized before execution; see
     decisions/2026-06-17-h001-statistical-test-design.md.
-  result: null
-  result_file: null
+  status: completed
+
+result: PASS
+
+result_file: results/H001_20260618_141550.md
+
+result_summary: >
+  Bootstrap CI [0.00001063, 0.00022332], mean signed_return
+  0.00011531, n=634 valid events. Positive predictive information
+  detected on BTCUSDT. Result remained positive under threshold
+  variation (1.5, 2.0, 3.0), outlier removal, and ETHUSDT
+  cross-symbol validation. Tradability was not assessed.
