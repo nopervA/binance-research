@@ -137,6 +137,8 @@
 
 - id: H003
   title: "Is there a positive relationship between OFI z-score magnitude and predictive information content?"
+  registered: "2026-06-19T00:00:00Z"
+  status: registered
   research_question_type: relationship_characterization
   parameters:
     symbol: BTCUSDT
@@ -150,7 +152,7 @@
     low: [1.5, 2.0]
     medium: [2.0, 3.0]
     high: [3.0, 5.0]
-    extreme: [5.0, .inf]
+    extreme: [5.0, null]
   primary_output:
     - event_count
     - share_of_total_events
@@ -163,4 +165,11 @@
   secondary_output:
     - regression_slope
     - regression_r_squared
-  status: registered
+  notes: >
+    No binary pass/fail. Deliverable is characterization of the
+    magnitude-predictability relationship. Bucket boundaries were
+    retained after a pre-registration feasibility check confirmed
+    non-trivial event counts in all buckets. See
+    decisions/2026-06-19-h003-bucket-feasibility-check.md.
+  result: null
+  result_file: null
